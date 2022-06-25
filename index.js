@@ -33,13 +33,13 @@ app.post("/participants", async (request, response) => {
     };
 
     const name = request.body.name;
-    const now = dayjs().format("HH:mm:ss");
+    const time = dayjs().format("HH:mm:ss");
     const participant = {name: name, lastStatus: Date.now()};
-    const date = {from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: now};
+    const date = {from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: time};
 
     try {
         await db.collection("users").insertOne(participant);
-        await db.collection("menssags").insertOne(date);
+        await db.collection("menssages").insertOne(date);
         response.sendStatus(201);
     } catch (error) {
         response.status(500).send(error);
@@ -48,9 +48,36 @@ app.post("/participants", async (request, response) => {
 
 app.get("/participants", async (request, response) => {
     let users;
+
     try {
         users = await db.collection("users").find().toArray();
         response.send(users);
+    } catch (error) {
+        response.status(500).send(error);
+    };
+});
+
+app.post("/messages", async (request, response) => {
+    const time = dayjs().format("HH:mm:ss");
+    const data = {...request.body, from: request.headers.user};
+    const existingUser = await db.collection("users").findOne({name: request.headers.user});
+    const schema = Joi.object({
+        to: Joi.string().required().min(1),
+        text: Joi.string().required().min(1),
+        type: Joi.string().valid("message", "private_message").required(),
+        from: Joi.string().required().valid(existingUser.name)
+    });
+    const { error } = schema.validate(data, { abortEarly: false });
+
+    if (error) {
+        response.sendStatus(422);
+        return;
+    };
+
+    let message = {...data, time: time}
+    try {
+        await db.collection("menssages").insertOne(message);
+        response.sendStatus(201)
     } catch (error) {
         response.status(500).send(error);
     };
