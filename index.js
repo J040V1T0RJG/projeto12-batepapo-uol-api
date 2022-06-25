@@ -27,7 +27,6 @@ app.post("/participants", async (request, response) => {
         response.sendStatus(422);
         return;
     };
-
     if (user) {
         response.sendStatus(409);
         return
@@ -41,13 +40,21 @@ app.post("/participants", async (request, response) => {
     try {
         await db.collection("users").insertOne(participant);
         await db.collection("menssags").insertOne(date);
-
         response.sendStatus(201);
     } catch (error) {
-        res.status(500).send(error);
+        response.status(500).send(error);
     };
 });
 
+app.get("/participants", async (request, response) => {
+    let users;
+    try {
+        users = await db.collection("users").find().toArray();
+        response.send(users);
+    } catch (error) {
+        response.status(500).send(error);
+    };
+});
 
 
 
