@@ -14,11 +14,12 @@ mongoClient.connect().then(() => {
     db = mongoClient.db("projeto12-batepapo-uol-api-mongo");
 });
 
+let name;
+
 app.post("/participants", async (request, response) => {
     const schema = Joi.object({
         name: Joi.string()
             .required()
-            .alphanum()
     });
     const { error } = schema.validate(request.body);
     const user = await db.collection("users").findOne({name: request.body.name});
@@ -32,14 +33,14 @@ app.post("/participants", async (request, response) => {
         return
     };
 
-    const name = request.body.name;
+    name = request.body.name;
     const time = dayjs().format("HH:mm:ss");
     const participant = {name: name, lastStatus: Date.now()};
     const date = {from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: time};
 
     try {
         await db.collection("users").insertOne(participant);
-        await db.collection("menssages").insertOne(date);
+        await db.collection("messages").insertOne(date);
         response.sendStatus(201);
     } catch (error) {
         response.status(500).send(error);
@@ -76,13 +77,36 @@ app.post("/messages", async (request, response) => {
 
     let message = {...data, time: time}
     try {
-        await db.collection("menssages").insertOne(message);
+        await db.collection("messages").insertOne(message);
         response.sendStatus(201)
     } catch (error) {
         response.status(500).send(error);
     };
 });
 
+app.get("/messages", async (request, response) => {
+    let messages = []
+    const limit = parseInt(request.query.limit);
+
+    const messagesArray = await db.collection("messages").find({$or: [
+                                                                {to: "Todos"},
+                                                                {to: name},
+                                                                {from: name}
+                                                            ]}).toArray(); 
+    if (limit) {
+        if (limit >= messagesArray.length) {
+            messages = [...messagesArray]
+        } else {
+            for(let i = messagesArray.length - limit; i <= messagesArray.length - 1; i++) {
+            messages.push(messagesArray[i])
+            }
+        };
+    } else {
+        messages = [...messagesArray]
+    };
+
+    response.send(messages)
+});
 
 
 
