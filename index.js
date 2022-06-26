@@ -3,6 +3,9 @@ import { MongoClient } from "mongodb";
 import cors from "cors";
 import Joi from "joi";
 import dayjs from "dayjs";
+import { stripHtml } from "string-strip-html";
+import assert from "assert";
+import Trim from "trim";
 
 const app = express();
 app.use(cors(), express.json());
@@ -33,7 +36,7 @@ app.post("/participants", async (request, response) => {
         return
     };
 
-    name = request.body.name;
+    name = Trim(stripHtml(request.body.name).result);
     const time = dayjs().format("HH:mm:ss");
     const participant = {name: name, lastStatus: Date.now()};
     const date = {from: name, to: 'Todos', text: 'entra na sala...', type: 'status', time: time};
@@ -59,9 +62,15 @@ app.get("/participants", async (request, response) => {
 });
 
 app.post("/messages", async (request, response) => {
-    name = request.headers.user;
+    name = Trim(stripHtml(request.headers.user).result);
     const time = dayjs().format("HH:mm:ss");
-    const data = {...request.body, from: request.headers.user};
+
+    const data = {
+                to: Trim(stripHtml(request.body.to).result),
+                text: Trim(stripHtml(request.body.text).result), 
+                type: Trim(stripHtml(request.body.type).result),
+                from: Trim(stripHtml(request.headers.user).result),
+            };
     const existingUser = await db.collection("users").findOne({name: name});
     const schema = Joi.object({
         to: Joi.string().required().min(1),
@@ -84,6 +93,7 @@ app.post("/messages", async (request, response) => {
         response.status(500).send(error);
     };
 });
+
 let messagesArray = []
 app.get("/messages", async (request, response) => {
     let messages = [];
@@ -105,12 +115,12 @@ app.get("/messages", async (request, response) => {
     } else {
         messages = [...messagesArray]
     };
-    
+
     response.send(messages)
 });
 
 app.post("/status", async (request, response) => {
-    name = request.headers.user;
+    name = Trim(stripHtml(request.headers.user).result);
     const existingUser = await db.collection("users").findOne({name: name});
 
     if (!existingUser) {
@@ -142,6 +152,16 @@ async function removeUser () {
     };
 };
 
+  //  const data = {...request.body, from: request.headers.user};
+
+/*
+function sanitize (nameHtml) {
+    console.log("aaaaaaaaaaaaaaa", nameHtml)
+    let sanitizedName = assert.equal(stripHtml(nameHtml, ).result, "");
+    console.log(sanitizedName)
+    return sanitizedName;
+}
+*/
 
 ///// quando coloquei as funcoes, o time parou de funcionar, a mensagem que eu digitei não aparecia mais
 /*

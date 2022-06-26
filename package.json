@@ -9,11 +9,14 @@
     "test": "jest -i --color --passWithNoTests"
   },
   "dependencies": {
+    "assert": "^2.0.0",
     "cors": "^2.8.5",
     "dayjs": "^1.11.3",
     "express": "^4.18.1",
     "joi": "^17.6.0",
     "mongodb": "^4.7.0",
-    "nodemon": "^2.0.18"
+    "nodemon": "^2.0.18",
+    "string-strip-html": "^9.1.12",
+    "trim": "^1.0.1"
   }
 }
