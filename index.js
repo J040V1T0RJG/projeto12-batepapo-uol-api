@@ -59,9 +59,10 @@ app.get("/participants", async (request, response) => {
 });
 
 app.post("/messages", async (request, response) => {
+    name = request.headers.user;
     const time = dayjs().format("HH:mm:ss");
     const data = {...request.body, from: request.headers.user};
-    const existingUser = await db.collection("users").findOne({name: request.headers.user});
+    const existingUser = await db.collection("users").findOne({name: name});
     const schema = Joi.object({
         to: Joi.string().required().min(1),
         text: Joi.string().required().min(1),
@@ -108,8 +109,36 @@ app.get("/messages", async (request, response) => {
     response.send(messages)
 });
 
+app.post("/status", async (request, response) => {
+    name = request.headers.user;
+    const existingUser = await db.collection("users").findOne({name: name});
 
+    if (!existingUser) {
+        response.sendStatus(404);
+        return;
+    };
 
+    try {
+        await db.collection("users").updateOne({name: name}, {$set: {lastStatus: Date.now()} });
+        response.sendStatus(200);
+    } catch (error) {
+        response.status(500).send(error);
+    }
+});
 
+///// quando coloquei as funcoes, o time parou de funcionar, a mensagem que eu digitei não aparecia mais
+/*
+async function findUser (username) {
+    const existingUser = await db.collection("users").findOne({name: username});
+    return existingUser;
+};
+*/
+
+/*
+function nowTime () {
+    const time =  dayjs().format("HH:mm:ss")
+    return time;
+};
+*/
 
 app.listen(5000);
