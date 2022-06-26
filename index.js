@@ -84,12 +84,12 @@ app.post("/messages", async (request, response) => {
         response.status(500).send(error);
     };
 });
-
+let messagesArray = []
 app.get("/messages", async (request, response) => {
-    let messages = []
+    let messages = [];
     const limit = parseInt(request.query.limit);
 
-    const messagesArray = await db.collection("messages").find({$or: [
+    messagesArray = await db.collection("messages").find({$or: [
                                                                 {to: "Todos"},
                                                                 {to: name},
                                                                 {from: name}
@@ -105,7 +105,7 @@ app.get("/messages", async (request, response) => {
     } else {
         messages = [...messagesArray]
     };
-
+    
     response.send(messages)
 });
 
@@ -125,6 +125,23 @@ app.post("/status", async (request, response) => {
         response.status(500).send(error);
     }
 });
+
+setInterval(removeUser, 15000);
+
+async function removeUser () {
+    const time = dayjs().format("HH:mm:ss");
+
+    try {
+        const { value } =  await db.collection("users").findOneAndDelete({lastStatus: {$lt: Date.now() - 10000 }})
+
+        if (value) {
+            await db.collection("messages").insertOne({from: value.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: time})
+        }
+    } catch (error) {
+        response.status(500).send(error);
+    };
+};
+
 
 ///// quando coloquei as funcoes, o time parou de funcionar, a mensagem que eu digitei não aparecia mais
 /*
