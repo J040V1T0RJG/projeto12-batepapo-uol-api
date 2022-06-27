@@ -4,13 +4,15 @@ import cors from "cors";
 import Joi from "joi";
 import dayjs from "dayjs";
 import { stripHtml } from "string-strip-html";
-import assert from "assert";
 import Trim from "trim";
+import dotenv from "dotenv"
+
+dotenv.config()
 
 const app = express();
 app.use(cors(), express.json());
 
-const mongoClient = new MongoClient("mongodb://localhost:27017");
+const mongoClient = new MongoClient(process.env.MONGO_URL);
 let db;
 
 mongoClient.connect().then(() => {
@@ -18,7 +20,6 @@ mongoClient.connect().then(() => {
 });
 
 let name;
- console.log("funfandoooo")
 app.post("/participants", async (request, response) => {
     const schema = Joi.object({
         name: Joi.string()
@@ -69,7 +70,7 @@ app.post("/messages", async (request, response) => {
                 to: Trim(stripHtml(request.body.to).result),
                 text: Trim(stripHtml(request.body.text).result), 
                 type: Trim(stripHtml(request.body.type).result),
-                from: Trim(stripHtml(request.headers.user).result),
+                from: name
             };
     const existingUser = await db.collection("users").findOne({name: name});
     const schema = Joi.object({
@@ -158,6 +159,51 @@ app.delete("/messages/:ID_DA_MENSAGEM", async (request, response) => {
     }
 });
 
+app.put("/messages/:ID_DA_MENSAGEM", async (request, response) => {
+    const id = request.params.ID_DA_MENSAGEM;
+    const time = dayjs().format("HH:mm:ss");
+    let updateName = Trim(stripHtml(request.headers.user).result);
+    let updateMessage = {
+                        to: Trim(stripHtml(request.body.to).result),
+                        text: Trim(stripHtml(request.body.text).result), 
+                        type: Trim(stripHtml(request.body.type).result),
+                        from: updateName
+                    };
+
+    const existingUser = await db.collection("users").findOne({name: updateName});
+    const schema = Joi.object({
+        to: Joi.string().required().min(1),
+        text: Joi.string().required().min(1),
+        type: Joi.string().valid("message", "private_message").required(),
+        from: Joi.string().required().valid(existingUser.name)
+    });
+    const { error } = schema.validate(updateMessage, { abortEarly: false });
+
+    if (error) {
+        response.sendStatus(422);
+        return;
+    };
+    updateMessage = {...updateMessage, time: time}
+
+    try {
+        const objectMessage = await db.collection("messages").find({_id : new ObjectId(id)}); 
+        const messageOwner = await db.collection("messages").find({$and: [{_id : new ObjectId(id)}, {from: updateName}]});
+        
+        if (!objectMessage) {
+            response.sendStatus(404);
+            return;
+        };
+        if (!messageOwner) {
+            response.sendStatus(401);
+            return;
+        };
+
+        await db.collection("messages").updateOne({$and: [{_id: new ObjectId(id)}, {from: updateName}]}, {$set: updateMessage});
+    } catch (error) {
+        response.status(500).send(error);
+    };
+});
+
 setInterval(removeUser, 15000);
 
 async function removeUser () {
@@ -173,31 +219,5 @@ async function removeUser () {
         response.status(500).send(error);
     };
 };
-
-  //  const data = {...request.body, from: request.headers.user};
-
-/*
-function sanitize (nameHtml) {
-    console.log("aaaaaaaaaaaaaaa", nameHtml)
-    let sanitizedName = assert.equal(stripHtml(nameHtml, ).result, "");
-    console.log(sanitizedName)
-    return sanitizedName;
-}
-*/
-
-///// quando coloquei as funcoes, o time parou de funcionar, a mensagem que eu digitei não aparecia mais
-/*
-async function findUser (username) {
-    const existingUser = await db.collection("users").findOne({name: username});
-    return existingUser;
-};
-*/
-
-/*
-function nowTime () {
-    const time =  dayjs().format("HH:mm:ss")
-    return time;
-};
-*/
 
 app.listen(5000);
