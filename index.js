@@ -1,5 +1,5 @@
 import express, { json } from "express";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import Joi from "joi";
 import dayjs from "dayjs";
@@ -18,7 +18,7 @@ mongoClient.connect().then(() => {
 });
 
 let name;
-
+ console.log("funfandoooo")
 app.post("/participants", async (request, response) => {
     const schema = Joi.object({
         name: Joi.string()
@@ -94,12 +94,11 @@ app.post("/messages", async (request, response) => {
     };
 });
 
-let messagesArray = []
 app.get("/messages", async (request, response) => {
     let messages = [];
     const limit = parseInt(request.query.limit);
 
-    messagesArray = await db.collection("messages").find({$or: [
+    let messagesArray = await db.collection("messages").find({$or: [
                                                                 {to: "Todos"},
                                                                 {to: name},
                                                                 {from: name}
@@ -136,16 +135,39 @@ app.post("/status", async (request, response) => {
     }
 });
 
+app.delete("/messages/:ID_DA_MENSAGEM", async (request, response) => {
+    const id = request.params.ID_DA_MENSAGEM;
+    let deleteName = Trim(stripHtml(request.headers.user).result);
+
+    try {
+        const objectMessage = await db.collection("messages").find({_id : new ObjectId(id)}); 
+        const messageOwner = await db.collection("messages").find({$and: [{_id : new ObjectId(id)}, {from: deleteName}]});
+        
+        if (!objectMessage) {
+            response.sendStatus(404);
+            return;
+        };
+        if (!messageOwner) {
+            response.sendStatus(401);
+            return;
+        };
+
+        await db.collection("messages").deleteOne({$and: [{_id: new ObjectId(id)}, {from: deleteName}]});
+    } catch (error) {
+        response.status(500).send(error);
+    }
+});
+
 setInterval(removeUser, 15000);
 
 async function removeUser () {
     const time = dayjs().format("HH:mm:ss");
 
     try {
-        const { value } =  await db.collection("users").findOneAndDelete({lastStatus: {$lt: Date.now() - 10000 }})
+        const { value } =  await db.collection("users").findOneAndDelete({lastStatus: {$lt: Date.now() - 10000 }});
 
         if (value) {
-            await db.collection("messages").insertOne({from: value.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: time})
+            await db.collection("messages").insertOne({from: value.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: time});
         }
     } catch (error) {
         response.status(500).send(error);
